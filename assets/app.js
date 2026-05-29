@@ -1,6 +1,7 @@
 const data = window.EMOJI_DATA || [];
 const i18n = window.APP_I18N || {};
 const categoryI18n = window.CATEGORY_I18N || {};
+const zhLabels = window.ZH_EMOJI_LABELS || {};
 const currentLang = document.body.dataset.lang || "en";
 const storageKey = "vagatools-emoji";
 const pageSize = 180;
@@ -73,8 +74,19 @@ function translatedGroup(group) {
   return categoryI18n[group]?.[currentLang] || categoryI18n[group]?.en || group;
 }
 
+function stripEmojiVariants(symbol) {
+  return symbol.replace(/\uFE0F/g, "");
+}
+
+function emojiLabel(item) {
+  if (currentLang === "zh-CN") {
+    return zhLabels[item.e] || zhLabels[stripEmojiVariants(item.e)] || item.n;
+  }
+  return item.n;
+}
+
 function searchableText(item) {
-  return normalize([item.e, item.n, item.g, item.s, item.c, translatedGroup(item.g)].join(" "));
+  return normalize([item.e, item.n, emojiLabel(item), item.g, item.s, item.c, translatedGroup(item.g)].join(" "));
 }
 
 function itemByEmoji(symbol) {
@@ -171,12 +183,13 @@ function renderGrid(items) {
 
 function cardHtml(item) {
   const favorite = state.favorites.includes(item.e);
-  return `<article class="emoji-card" data-emoji="${escapeHtml(item.e)}" tabindex="0" aria-label="${escapeHtml(item.n)}">
+  const label = emojiLabel(item);
+  return `<article class="emoji-card" data-emoji="${escapeHtml(item.e)}" tabindex="0" aria-label="${escapeHtml(label)}">
     <button class="favorite-toggle${favorite ? " active" : ""}" type="button" data-favorite="${escapeHtml(
       item.e,
     )}" aria-label="${escapeHtml(i18n.favorites)}">${favorite ? "★" : "☆"}</button>
     <div class="emoji-symbol">${escapeHtml(item.e)}</div>
-    <div class="emoji-name">${escapeHtml(item.n)}</div>
+    <div class="emoji-name">${escapeHtml(label)}</div>
     <div class="emoji-code">${escapeHtml(item.c)}</div>
   </article>`;
 }
@@ -251,7 +264,7 @@ function toggleFavorite(symbol) {
 function openDialog(item) {
   state.dialogEmoji = item;
   els.dialogSymbol.textContent = item.e;
-  els.dialogName.textContent = item.n;
+  els.dialogName.textContent = emojiLabel(item);
   els.dialogCode.textContent = item.c;
   els.dialogGroup.textContent = translatedGroup(item.g);
   refreshDialogFavorite();
@@ -279,12 +292,47 @@ function detectLanguageRedirect() {
 }
 
 function initAdSlots() {
-  document.querySelectorAll(".adsbygoogle").forEach(() => {
+  const applyAdBandState = (slot) => {
+    const band = slot.closest(".ad-band");
+    if (!band) return;
+
+    const status = slot.getAttribute("data-ad-status");
+    const filled = status === "filled";
+    const mobile = window.matchMedia("(max-width: 560px)").matches;
+    const height = filled ? (mobile ? 72 : 90) : mobile ? 8 : 12;
+
+    band.classList.toggle("ad-filled", filled);
+    band.classList.toggle("ad-empty", !filled);
+    band.style.setProperty("height", `${height}px`, "important");
+    band.style.setProperty("min-height", `${height}px`, "important");
+    band.style.setProperty("max-height", `${height}px`, "important");
+    band.style.setProperty("overflow", "hidden", "important");
+
+    if (filled) {
+      slot.style.setProperty("display", "block", "important");
+      slot.style.setProperty("height", `${height}px`, "important");
+      slot.style.setProperty("min-height", `${height}px`, "important");
+      slot.style.setProperty("max-height", `${height}px`, "important");
+    } else {
+      slot.style.setProperty("display", "none", "important");
+      slot.style.setProperty("height", "0px", "important");
+      slot.style.setProperty("min-height", "0px", "important");
+      slot.style.setProperty("max-height", "0px", "important");
+    }
+  };
+
+  document.querySelectorAll(".adsbygoogle").forEach((slot) => {
     try {
       (window.adsbygoogle = window.adsbygoogle || []).push({});
     } catch {
       // Ad blockers and local previews can block AdSense; the site should remain usable.
     }
+
+    [900, 1800, 4000].forEach((delay) => window.setTimeout(() => applyAdBandState(slot), delay));
+    new MutationObserver(() => applyAdBandState(slot)).observe(slot, {
+      attributes: true,
+      attributeFilter: ["data-ad-status"],
+    });
   });
 }
 
