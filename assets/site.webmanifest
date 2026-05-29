@@ -1,0 +1,16 @@
+{
+  "name": "VagaTools Emoji",
+  "short_name": "Emoji",
+  "description": "Free multilingual emoji search and copy tool.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fbf7ef",
+  "theme_color": "#fbf7ef",
+  "icons": [
+    {
+      "src": "/assets/favicon.svg",
+      "sizes": "64x64",
+      "type": "image/svg+xml"
+    }
+  ]
+}
